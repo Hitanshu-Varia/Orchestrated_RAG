@@ -3,12 +3,12 @@
 
 Orchestrated_RAG is a production-grade RAG system designed for maximum accuracy in answering questions over documents. Key features include:
 
-Hybrid Retrieval: Combines semantic vector search (Qdrant) with BM25 keyword matching
-Contextual Enrichment: LLM-generated context for each document chunk (reduces retrieval failures by 35-49%)
-Advanced Techniques: HyDE, CRAG gate, Cohere reranking, self-critique hallucination detection
-Multi-LLM Support: Groq for fast operations, OpenRouter for final generation
-Local Processing: CPU-optimized embeddings (BAAI/bge-large-en-v1.5) with no API requirements
-Document Support: Parses PDF, DOCX, TXT, MD, CSV using Docling
+Hybrid Retrieval: Combines semantic vector search (Qdrant) with BM25 keyword matching\n
+Contextual Enrichment: LLM-generated context for each document chunk (reduces retrieval failures by 35-49%)\n
+Advanced Techniques: HyDE, CRAG gate, Cohere reranking, self-critique hallucination detection\n
+Multi-LLM Support: Groq for fast operations, OpenRouter for final generation\n
+Local Processing: CPU-optimized embeddings (BAAI/bge-large-en-v1.5) with no API requirements\n
+Document Support: Parses PDF, DOCX, TXT, MD, CSV using Docling\n
 Web Fallback: Tavily integration for unanswered queries
 
 ---
