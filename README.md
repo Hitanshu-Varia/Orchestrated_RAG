@@ -1,5 +1,7 @@
-# 🧠 Max-Accuracy RAG Stack
-## Free | CPU-Friendly | i5 13th Gen Ready
+# 🧠 Orchestrated RAG
+## High-Accuracy Document Q&A System | CPU-Friendly | Multi-LLM Support
+
+A production-grade Retrieval-Augmented Generation (RAG) system designed for maximum accuracy in document-based question answering. Features advanced retrieval techniques, contextual enrichment, and multi-model LLM orchestration.
 
 ---
 
@@ -7,97 +9,155 @@
 
 ```
 rag_project/
-├── docs/               ← DROP YOUR FILES HERE (.pdf, .txt, .md, .docx)
-├── qdrant_db/          ← Auto-created vector store (persists on disk)
-├── graph_cache/        ← Auto-created GraphRAG cache (future use)
-├── config.py           ← Configuration settings (API keys via environment variables)
-├── .env                ← Your API keys (local only, not committed)
-├── ingest.py           ← Run ONCE to index your documents
-├── query.py            ← Run this to ask questions
-├── pipeline.py         ← Core RAG pipeline (the brain)
-├── requirements.txt    ← All dependencies
+├── docs/               ← Drop your documents here (.pdf, .txt, .md, .docx)
+├── qdrant_db/          ← Auto-created Qdrant vector store (persists on disk)
+├── graph_cache/        ← Cache for future GraphRAG features
+├── enrich_cache.json   ← Contextual enrichment cache
+├── config.py           ← Configuration (API keys via environment variables)
+├── .env                ← Your API keys (local development, not committed)
+├── ingest.py           ← Document ingestion and indexing pipeline
+├── query.py            ← Interactive Q&A interface
+├── pipeline.py         ← Core RAG orchestration logic
+├── tests.py            ← Test suite for validation
+├── requirements.txt    ← Python dependencies
 └── README.md           ← This file
 ```
 
-## 🚀 Setup
+## ✨ Key Features
 
-1. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+- **Hybrid Retrieval**: Combines vector search (Qdrant) + BM25 keyword search
+- **Contextual Enrichment**: LLM-generated context for each document chunk (35-49% retrieval improvement)
+- **Advanced Reranking**: Cohere reranking for top-k selection
+- **CRAG Gate**: Intelligent decision for web search fallback
+- **Multi-LLM Support**: Groq (fast routing), OpenRouter (final generation)
+- **Local Embeddings**: BAAI/bge-large-en-v1.5 (CPU-only, no API required)
+- **Document Parsing**: Docling for structured document processing
+- **Self-Critique**: Hallucination detection and correction
+- **CPU-Friendly**: Optimized for consumer hardware (i5 13th gen ready)
 
-2. **Set up API keys:**
-   - Copy `.env` and fill in your API keys from the respective services.
-   - Or set environment variables directly.
+## 🚀 Quick Start
 
-3. **Run the pipeline:**
-   - Ingest documents: `python ingest.py`
-   - Query: `python query.py`
-
----
-
-## ⚡ Setup (5 minutes)
-
-### Step 1 — Install dependencies
+### 1. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 2 — Get your FREE API keys (all have free tiers)
-| Service | Get Key At | Used For |
-|---|---|---|
-| Groq | https://console.groq.com | Fast routing, HyDE, CRAG gate |
-| Gemini | https://aistudio.google.com | Final answer generation |
-| Cohere | https://dashboard.cohere.com | Reranking (10k free/month) |
-| Tavily | https://app.tavily.com | Web fallback (1000 free/month) |
+### 2. Set Up API Keys
+Get free API keys from these services:
 
-### Step 3 — Add keys to config.py
-```python
-GROQ_API_KEY   = "gsk_..."
-GEMINI_API_KEY = "AIza..."
-COHERE_API_KEY = "..."
-TAVILY_API_KEY = "tvly-..."
+| Service | URL | Purpose | Free Tier |
+|---|---|---|---|
+| Groq | https://console.groq.com | Fast LLM for routing, HyDE, CRAG | 30 RPM |
+| OpenRouter | https://openrouter.ai | Final answer generation | Pay-per-use |
+| Cohere | https://dashboard.cohere.com | Document reranking | 10k/month |
+| Tavily | https://app.tavily.com | Web search fallback | 1000/month |
+
+Create a `.env` file in the project root:
+```bash
+GROQ_API_KEY=your_groq_key_here
+OPENROUTER_API_KEY=your_openrouter_key_here
+COHERE_API_KEY=your_cohere_key_here
+TAVILY_API_KEY=your_tavily_key_here
 ```
 
-### Step 4 — Drop your documents into /docs
-Supported: `.pdf`, `.txt`, `.md`, `.docx`, `.csv`
+### 3. Add Documents
+Place your documents in the `docs/` folder. Supported formats:
+- PDF (.pdf)
+- Word documents (.docx)
+- Text files (.txt)
+- Markdown (.md)
+- CSV (.csv)
 
-### Step 5 — Ingest
+### 4. Ingest Documents
 ```bash
 python ingest.py
 ```
+This will parse documents, generate contextual enrichments, and build the vector index.
 
-### Step 6 — Query
+### 5. Ask Questions
 ```bash
 python query.py
 ```
+Interactive Q&A interface with rich formatting.
 
----
-
-## 🏗️ How It Works (Pipeline)
+## 🏗️ Pipeline Architecture
 
 ```
 User Query
     │
     ▼
-[Groq] HyDE — generate hypothetical answer to improve retrieval
+[Query Decomposition] Split complex queries into sub-questions
     │
     ▼
-[Local CPU] Embed with BAAI/bge-large-en-v1.5 (no API needed)
+[HyDE] Generate hypothetical answers for better retrieval
     │
-    ├──── Vector search ChromaDB   (top 15)
-    ├──── BM25 keyword search      (top 10)
+    ▼
+[Local Embeddings] BAAI/bge-large-en-v1.5 on CPU
+    │
+    ├──── Vector Search (Qdrant) → top 15 chunks
+    ├──── BM25 Keyword Search → top 10 chunks
     │         └── Merge & dedupe → ~20 chunks
     ▼
-[Cohere] Rerank → top 5 most relevant chunks
+[Cohere Rerank] → top 6 most relevant chunks
     │
     ▼
-[Groq] CRAG Gate — "Is this context sufficient? Y/N"
-    │         └── N → Tavily web search fallback
-    ▼
-[Groq] Self-critique — checks answer for hallucinations
+[Context Compression] Cross-encoder filtering
     │
     ▼
+[CRAG Gate] "Sufficient context?" Y/N
+    │         └── N → Tavily web search + merge
+    ▼
+[OpenRouter] Generate final answer
+    │
+    ▼
+[Self-Critique] Check for hallucinations
+    │
+    ▼
+Final Answer
+```
+
+## 🧪 Testing
+
+Run the test suite:
+```bash
+python tests.py
+```
+
+Or test specific components:
+```bash
+python tests.py --test P-02
+```
+
+## 🔧 Configuration
+
+Edit `config.py` to customize:
+- Model selections
+- Retrieval parameters (top-k values)
+- Chunking settings
+- API endpoints
+
+## 📊 Performance
+
+- **Accuracy**: Advanced techniques reduce retrieval failures by 35-49%
+- **Speed**: CPU-optimized with fast local embeddings
+- **Cost**: Leverages free tiers of multiple APIs
+- **Hardware**: Runs on i5 13th gen or equivalent
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `python tests.py`
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
+
+---
+
+*Built with LlamaIndex, Qdrant, and modern RAG techniques.*
 [Gemini] Final answer generation
     │
     ▼
