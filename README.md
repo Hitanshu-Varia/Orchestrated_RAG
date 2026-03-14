@@ -8,15 +8,31 @@
 ```
 rag_project/
 ├── docs/               ← DROP YOUR FILES HERE (.pdf, .txt, .md, .docx)
-├── chroma_db/          ← Auto-created vector store (persists on disk)
+├── qdrant_db/          ← Auto-created vector store (persists on disk)
 ├── graph_cache/        ← Auto-created GraphRAG cache (future use)
-├── config.py           ← ALL your API keys go here
+├── config.py           ← Configuration settings (API keys via environment variables)
+├── .env                ← Your API keys (local only, not committed)
 ├── ingest.py           ← Run ONCE to index your documents
 ├── query.py            ← Run this to ask questions
 ├── pipeline.py         ← Core RAG pipeline (the brain)
 ├── requirements.txt    ← All dependencies
 └── README.md           ← This file
 ```
+
+## 🚀 Setup
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Set up API keys:**
+   - Copy `.env` and fill in your API keys from the respective services.
+   - Or set environment variables directly.
+
+3. **Run the pipeline:**
+   - Ingest documents: `python ingest.py`
+   - Query: `python query.py`
 
 ---
 
