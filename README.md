@@ -158,11 +158,6 @@ MIT License - see LICENSE file for details.
 ---
 
 *Built with LlamaIndex, Qdrant, and modern RAG techniques.*
-[Gemini] Final answer generation
-    │
-    ▼
-Answer + Source citations
-```
 
 ---
 
