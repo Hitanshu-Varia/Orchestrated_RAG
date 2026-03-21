@@ -3,6 +3,8 @@
 # ============================================================
 
 import os
+from dotenv import load_dotenv
+load_dotenv()  # reads .env file into os.environ
 
 # ── API Keys (all free tiers) ────────────────────────────────
 GROQ_API_KEY   = os.getenv('GROQ_API_KEY', 'your_groq_key_here')       # https://console.groq.com
@@ -12,7 +14,7 @@ TAVILY_API_KEY = os.getenv('TAVILY_API_KEY', 'your_tavily_key_here')     # https
 
 # ── Model Selection ──────────────────────────────────────────
 GROQ_MODEL     = "llama-3.1-8b-instant"   # fast, free — for HyDE/CRAG/critique
-OPENROUTER_MODEL ="openrouter/hunter-alpha"
+OPENROUTER_MODEL ="nvidia/nemotron-3-super-120b-a12b:free"
 EMBED_MODEL    = "BAAI/bge-large-en-v1.5"  # runs locally on CPU, no API needed
 COHERE_RERANK  = "rerank-english-v3.0"     # best free reranker
 CROSS_ENCODER_MODEL  = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # sentence scoring (22MB)
@@ -21,12 +23,12 @@ CROSS_ENCODER_MODEL  = "cross-encoder/ms-marco-MiniLM-L-6-v2"  # sentence scorin
 VECTOR_TOP_K          = 15    # chunks per vector search (per sub-query × 2: HyDE + original)
 BM25_TOP_K            = 10    # chunks per BM25 search
 BM25_SCORE_THRESHOLD  = 0.2   # filter junk BM25 matches below this score
-RERANK_TOP_N          = 6     # chunks surviving reranking — raised to 6 to catch late-doc chunks
-MAX_CHUNKS_PER_FILE   = 3     # source diversity cap per document
+RERANK_TOP_N          = 8     # chunks surviving reranking — raised to 6 to catch late-doc chunks
+MAX_CHUNKS_PER_FILE   = 5     # source diversity cap per document
 
 # ── Compression Settings (cross-encoder) ─────────────────────
-COMPRESS_SCORE_THRESHOLD = 0.3   # keep sentences scoring above this (0-1 scale)
-COMPRESS_TOP_K           = 15    # always keep at least this many top sentences
+COMPRESS_SCORE_THRESHOLD = 0.2   # keep sentences scoring above this (0-1 scale)
+COMPRESS_TOP_K           = 25   # always keep at least this many top sentences
 
 # ── Chunking Settings ────────────────────────────────────────
 # SemanticSplitter auto-detects boundaries — these are fallback controls

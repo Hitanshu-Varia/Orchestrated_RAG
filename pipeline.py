@@ -74,8 +74,15 @@ def decompose_query(query: str, fast_llm) -> list:
     log("DECOMPOSE", "Breaking query into sub-queries...")
     prompt = (
         "Break the following question into 2-3 focused search queries.\n"
-        "Each query should target a different aspect of the question.\n"
-        "Return ONLY the queries, one per line, no numbering, no bullets.\n\n"
+        "Each query should target a different aspect of the question.\n\n"
+        "CRITICAL RULES:\n"
+        "- Use ONLY the exact entity names from the question — do NOT substitute similar "
+        "real-world companies, people, or products.\n"
+        "- If the question mentions 'Axon Systems', search for 'Axon Systems' — NOT 'ARM Holdings', "
+        "'Qualcomm', or any other real company.\n"
+        "- If the question mentions a person's name, keep that exact name.\n"
+        "- Sub-queries must be directly answerable from internal documents about the entities mentioned.\n"
+        "- Return ONLY the queries, one per line, no numbering, no bullets.\n\n"
         f"Question: {query}\n\nQueries:"
     )
     resp = fast_llm.complete(prompt)
@@ -349,6 +356,8 @@ def final_generate(query: str, context: str, final_llm) -> str:
     prompt = (
         "You are a precise, factual assistant. Answer the question using ONLY "
         "the provided context.\n"
+        "IMPORTANT: Always complete your answer fully. Never truncate mid-sentence. "
+        "When listing names, always include ALL names mentioned in the context.\n"
         "If the answer cannot be found in the context, reply: "
         "'The provided documents do not contain this information.'\n\n"
         f"Context:\n{context}\n\n"
@@ -373,7 +382,9 @@ def self_critique(query: str, draft_answer: str, context: str, fast_llm) -> str:
         "   percentages that ARE present in the context. A direct factual answer "
         "   (e.g. '90 days') is better than an indirect citation (e.g. 'per Article 5.3').\n"
         "7. If the draft answer is correct and direct, reply PASS — do not rewrite "
-        "   just to add article references or legal citations.\n\n"
+        "   just to add article references or legal citations.\n"
+        "8. CRITICAL: If the context lists multiple people (founders, signatories, authors), "
+        "   the answer MUST include ALL of them. An answer missing any named person is WRONG.\n\n"
         f"Question: {query}\n\n"
         f"Draft Answer:\n{draft_answer}\n\n"
         f"Source Context:\n{context}\n\n"
@@ -452,15 +463,37 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
         crag_ok = crag_future.result()
         draft   = gen_future.result()
 
-    # 9. If CRAG says insufficient, regenerate with web fallback
+    # 9. If CRAG says insufficient, decide whether to use web fallback
     if not crag_ok:
-        web_ctx = web_fallback(query, doc_context=compressed_context)
-        if web_ctx:
-            draft = final_generate(query, web_ctx, final_llm)
-            compressed_context = web_ctx
-            source_type = "web+docs"
+        # Smart gate: if the query is about live/real-time data for an entity
+        # that IS in our documents, skip web search entirely.
+        # Reason: web search returns data for real-world companies with similar
+        # names (e.g. "Axon Systems" → real Axon Inc. AXON ticker).
+        # For internal document entities, "not in documents" is the correct answer.
+        live_data_keywords = [
+            "stock price", "share price", "current price", "market cap",
+            "stock market", "trading at", "ticker", "valuation today",
+            "weather", "breaking news", "latest news"
+        ]
+        query_lower = query.lower()
+        is_live_data_query = any(kw in query_lower for kw in live_data_keywords)
+
+        # Check if primary entities in query appear in our doc context
+        # If yes, this is an internal entity — don't web search
+        entity_in_docs = len(compressed_context) > 100  # we got relevant doc chunks
+
+        if is_live_data_query and entity_in_docs:
+            log("CRAG", "Live data query for internal entity — skipping web search", "yellow")
+            draft = "The provided documents do not contain this information. This appears to be a request for real-time data (such as a stock price) that is not available in the internal documents."
+            source_type = "docs_insufficient"
         else:
-            source_type = "docs_partial"
+            web_ctx = web_fallback(query, doc_context=compressed_context)
+            if web_ctx:
+                draft = final_generate(query, web_ctx, final_llm)
+                compressed_context = web_ctx
+                source_type = "web+docs"
+            else:
+                source_type = "docs_partial"
     else:
         source_type = "docs"
 
