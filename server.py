@@ -97,7 +97,14 @@ async def startup_load_models():
 
 # ── Serve Frontend ────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
-async def serve_frontend():
+async def serve_landing():
+    landing_path = os.path.join(os.path.dirname(__file__), "landing.html")
+    with open(landing_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.get("/app", response_class=HTMLResponse)
+async def serve_app():
     app_path = os.path.join(os.path.dirname(__file__), "app.html")
     with open(app_path, "r", encoding="utf-8") as f:
         return HTMLResponse(content=f.read())
