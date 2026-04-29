@@ -1,5 +1,6 @@
 # TF guard — stops broken TensorFlow DLL from crashing sentence-transformers on Windows
 import os
+import re
 os.environ["USE_TF"] = "0"
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 
@@ -99,8 +100,12 @@ def decompose_query(query: str, fast_llm) -> list:
     # SC-01 fix: for signature/signer questions, always add an anchor
     # sub-query that targets the document's signature block explicitly.
     # Signature blocks sit at the end of documents and are often missed.
-    sig_keywords = ["sign", "signed", "signator", "signature", "executed by"]
-    if any(kw in query.lower() for kw in sig_keywords):
+    sig_keywords = [
+        "sign", "signed", "signer", "signers", "signatory",
+        "signatories", "signature", "signatures", "executed by"
+    ]
+    sig_pattern = r"\b(" + "|".join(re.escape(kw) for kw in sig_keywords) + r")\b"
+    if re.search(sig_pattern, query.lower()):
         anchor = "signatures signed by date executed agreement"
         if anchor not in sub_queries:
             sub_queries.append(anchor)
