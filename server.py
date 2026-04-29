@@ -21,6 +21,7 @@ import uuid
 import time
 import pickle
 import asyncio
+import aiofiles
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -99,15 +100,17 @@ async def startup_load_models():
 @app.get("/", response_class=HTMLResponse)
 async def serve_landing():
     landing_path = os.path.join(os.path.dirname(__file__), "landing.html")
-    with open(landing_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    async with aiofiles.open(landing_path, mode="r", encoding="utf-8") as f:
+        content = await f.read()
+        return HTMLResponse(content=content)
 
 
 @app.get("/app", response_class=HTMLResponse)
 async def serve_app():
     app_path = os.path.join(os.path.dirname(__file__), "app.html")
-    with open(app_path, "r", encoding="utf-8") as f:
-        return HTMLResponse(content=f.read())
+    async with aiofiles.open(app_path, mode="r", encoding="utf-8") as f:
+        content = await f.read()
+        return HTMLResponse(content=content)
 
 
 # ── Status Endpoint ───────────────────────────────────────────
