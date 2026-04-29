@@ -19,7 +19,6 @@ import pickle
 import argparse
 from datetime import datetime
 from io import StringIO
-from contextlib import redirect_stdout
 
 import config
 from pipeline import init_models, load_index, run_pipeline
@@ -394,7 +393,7 @@ def write_report(results: list, output_path: str, total_time: float):
             lines.append(f"AUTO-SCORE: {r['score_reason']}")
             lines.append(f"\nANSWER:\n{r['answer']}")
             if r.get("sub_queries"):
-                lines.append(f"\nSUB-QUERIES USED:")
+                lines.append("\nSUB-QUERIES USED:")
                 for i, q in enumerate(r["sub_queries"], 1):
                     lines.append(f"  {i}. {q}")
             lines.append(f"\nSOURCES: {r['sources']}")
