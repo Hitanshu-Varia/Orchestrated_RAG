@@ -26,6 +26,7 @@ import time
 import json
 import pickle
 import hashlib
+import importlib.util
 from pathlib import Path
 
 from rich.console import Console
@@ -38,11 +39,7 @@ console = Console()
 
 # ── Docling availability check ────────────────────────────────
 def _docling_available() -> bool:
-    try:
-        import docling
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("docling") is not None
 
 
 # ── PASS 1A: Parse with Docling (structure-aware) ─────────────
@@ -52,7 +49,6 @@ def parse_with_docling(doc_path: str) -> list:
     Returns LlamaIndex TextNodes with rich structural metadata.
     Tables, headings, signature blocks — all preserved as distinct elements.
     """
-    from docling.document_converter import DocumentConverter
     from llama_index.readers.docling import DoclingReader
     from llama_index.node_parser.docling import DoclingNodeParser
 
@@ -284,16 +280,16 @@ def ingest():
     console.print(f"\n[green][PARSE][/green] Total chunks after parsing: {len(all_nodes)} ✓")
 
     # ── PASS 2: Contextual Enrichment ─────────────────────────
-    console.print(f"\n[cyan][ENRICH][/cyan] Starting contextual enrichment...")
+    console.print("\n[cyan][ENRICH][/cyan] Starting contextual enrichment...")
     console.print(
-        f"[dim]Anthropic Contextual Retrieval: prepending document context to each chunk[/dim]"
+        "[dim]Anthropic Contextual Retrieval: prepending document context to each chunk[/dim]"
     )
     console.print(
-        f"[dim]Reduces retrieval failures by 35-49% (Anthropic research, 2024)[/dim]"
+        "[dim]Reduces retrieval failures by 35-49% (Anthropic research, 2024)[/dim]"
     )
     console.print(
-        f"[dim]Using Groq free tier with rate-limit backoff. "
-        f"Progress saved — safe to Ctrl+C and resume.[/dim]"
+        "[dim]Using Groq free tier with rate-limit backoff. "
+        "Progress saved — safe to Ctrl+C and resume.[/dim]"
     )
 
     if config.GROQ_API_KEY == "your_groq_key_here":
@@ -401,7 +397,7 @@ def ingest():
     console.print(f"   • Parser:     [white]{parser_name}[/white]")
     console.print(f"   • Enriched:   [white]{'Yes' if config.GROQ_API_KEY != 'your_groq_key_here' else 'No (add GROQ_API_KEY)'}[/white]")
     console.print(f"   • Stored in:  [white]{config.QDRANT_DIR}/[/white]")
-    console.print(f"\n[bold cyan]Now run:[/bold cyan] python query.py")
+    console.print("\n[bold cyan]Now run:[/bold cyan] python query.py")
 
 
 if __name__ == "__main__":
