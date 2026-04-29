@@ -18,12 +18,9 @@ os.environ["TRANSFORMERS_NO_TF"] = "1"
 
 import json
 import uuid
-import time
 import pickle
 import asyncio
-from pathlib import Path
 from datetime import datetime
-from typing import Optional
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
@@ -31,7 +28,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 import config
-from pipeline import init_models, load_index, run_pipeline, log
+from pipeline import init_models, load_index
 from pipeline import (
     decompose_query, hyde_expand, hybrid_retrieve_single,
     rag_fusion, enforce_source_diversity, rerank,
@@ -39,13 +36,12 @@ from pipeline import (
     final_generate, self_critique
 )
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from collections import defaultdict
 
 # ── App Setup ─────────────────────────────────────────────────
 app = FastAPI(title="RAG Pipeline UI", version="2.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
