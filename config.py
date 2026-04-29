@@ -43,6 +43,11 @@ MAX_WEB_RESULTS = 3      # fallback web search results if CRAG gate fails
 # Delay between Groq calls during enrichment — keeps under 30 RPM
 ENRICH_DELAY_SECONDS = 1.2   # safe for free tier (30 RPM = 1 req/2s, we go faster since it's batched)
 
+# ── Security ──────────────────────────────────────────────────
+# Comma-separated list of allowed origins for CORS
+_allowed_origins_raw = os.getenv('ALLOWED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000')
+ALLOWED_ORIGINS = [origin.strip() for origin in _allowed_origins_raw.split(',') if origin.strip()]
+
 # ── Paths ────────────────────────────────────────────────────
 DOCS_DIR        = "./docs"
 QDRANT_DIR      = "./qdrant_db"       # local file-based, no server needed
