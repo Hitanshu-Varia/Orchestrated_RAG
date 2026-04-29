@@ -1,5 +1,6 @@
 # TF guard — stops broken TensorFlow DLL from crashing sentence-transformers on Windows
 import os
+
 os.environ["USE_TF"] = "0"
 os.environ["TRANSFORMERS_NO_TF"] = "1"
 
@@ -52,7 +53,7 @@ def init_models():
         api_base="https://openrouter.ai/api/v1",
         api_key=config.OPENROUTER_API_KEY,
         is_chat_model=True,
-        max_tokens=2048
+        max_tokens=2048,
     )
     Settings.embed_model = embed_model
     Settings.llm = final_llm
@@ -63,9 +64,13 @@ def init_models():
 # ── Load index from disk ──────────────────────────────────────
 def load_index():
     qdrant_client = QdrantClient(path=config.QDRANT_DIR)
-    vector_store = QdrantVectorStore(client=qdrant_client, collection_name=config.COLLECTION_NAME)
+    vector_store = QdrantVectorStore(
+        client=qdrant_client, collection_name=config.COLLECTION_NAME
+    )
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    return VectorStoreIndex.from_vector_store(vector_store, storage_context=storage_context)
+    return VectorStoreIndex.from_vector_store(
+        vector_store, storage_context=storage_context
+    )
 
 
 # ── STEP 1: Query Decomposition ───────────────────────────────
@@ -124,7 +129,9 @@ def hyde_expand(query: str, fast_llm) -> str:
 
 # ── STEP 3: Hybrid Retrieval (Vector + BM25) ─────────────────
 # Retrieves with BOTH HyDE query AND original query for dual coverage
-def hybrid_retrieve_single(query: str, hyde_query: str, index, nodes_store: list) -> list:
+def hybrid_retrieve_single(
+    query: str, hyde_query: str, index, nodes_store: list
+) -> list:
     vector_retriever = index.as_retriever(similarity_top_k=config.VECTOR_TOP_K)
 
     # Dual retrieval: HyDE query + original query (Fix #1)
@@ -152,7 +159,8 @@ def rag_fusion(result_lists: list, k: int = 60) -> list:
             nid = node.node.node_id
             scores[nid] += 1.0 / (k + rank + 1)
             # Keep highest-scored version of each node
-            if nid not in node_map or (node.score or 0) > (node_map[nid].score or 0):
+            existing = node_map.get(nid)
+            if existing is None or (node.score or 0) > (existing.score or 0):
                 node_map[nid] = node
 
     fused = sorted(scores.items(), key=lambda x: x[1], reverse=True)
@@ -176,11 +184,14 @@ def enforce_source_diversity(nodes: list, max_per_file: int = None) -> list:
 
 # ── STEP 6: Cohere Reranking ──────────────────────────────────
 def rerank(query: str, nodes: list) -> list:
-    log("RERANK", f"Reranking {len(nodes)} chunks → keeping top {config.RERANK_TOP_N}...")
+    log(
+        "RERANK",
+        f"Reranking {len(nodes)} chunks → keeping top {config.RERANK_TOP_N}...",
+    )
     reranker = CohereRerank(
         api_key=config.COHERE_API_KEY,
         top_n=config.RERANK_TOP_N,
-        model=config.COHERE_RERANK
+        model=config.COHERE_RERANK,
     )
     reranked = reranker.postprocess_nodes(nodes, query_str=query)
     log("RERANK", f"Top {len(reranked)} chunks selected ✓", "green")
@@ -205,16 +216,16 @@ def rerank(query: str, nodes: list) -> list:
 
 _cross_encoder = None  # lazy-loaded on first use
 
+
 def _get_cross_encoder():
     """Lazy-load the cross-encoder model (22MB, cached after first load)."""
     global _cross_encoder
     if _cross_encoder is None:
         from sentence_transformers import CrossEncoder
+
         log("COMPRESS", "Loading cross-encoder model (22MB, once only)...", "yellow")
         _cross_encoder = CrossEncoder(
-            config.CROSS_ENCODER_MODEL,
-            max_length=512,
-            device="cpu"
+            config.CROSS_ENCODER_MODEL, max_length=512, device="cpu"
         )
         log("COMPRESS", "Cross-encoder ready ✓", "green")
     return _cross_encoder
@@ -228,8 +239,9 @@ def _split_sentences(text: str) -> list:
     (like "Name: Value" pairs) as single units.
     """
     import re
+
     # Split on ". ", "! ", "? ", or newlines — but keep list items together
-    raw = re.split(r'(?<=[.!?])\s+|\n{2,}', text)
+    raw = re.split(r"(?<=[.!?])\s+|\n{2,}", text)
     sentences = []
     for s in raw:
         s = s.strip()
@@ -279,7 +291,11 @@ def compress_context(query: str, raw_context: str, fast_llm=None) -> str:
         log("COMPRESS", "Too few sentences kept — using full context", "yellow")
         return raw_context
 
-    log("COMPRESS", f"Kept {len(kept)}/{len(sentences)} sentences ({ratio}% of chars) ✓", "green")
+    log(
+        "COMPRESS",
+        f"Kept {len(kept)}/{len(sentences)} sentences ({ratio}% of chars) ✓",
+        "green",
+    )
     return compressed
 
 
@@ -310,8 +326,11 @@ def crag_gate(query: str, context_text: str, fast_llm) -> bool:
     )
     response = fast_llm.complete(prompt)
     result = "YES" in response.text.strip().upper()
-    log("CRAG", "✓ Sufficient" if result else "✗ Insufficient — triggering web fallback",
-        "green" if result else "red")
+    log(
+        "CRAG",
+        "✓ Sufficient" if result else "✗ Insufficient — triggering web fallback",
+        "green" if result else "red",
+    )
     return result
 
 
@@ -320,13 +339,17 @@ def web_fallback(query: str, doc_context: str = "") -> str:
     log("FALLBACK", "Searching the web via Tavily...", "yellow")
     try:
         from tavily import TavilyClient
+
         client = TavilyClient(api_key=config.TAVILY_API_KEY)
         results = client.search(query=query, max_results=config.MAX_WEB_RESULTS)
         raw_results = results.get("results") or []  # guard against None
-        web_combined = "\n\n---\n\n".join([
-            f"[WEB SOURCE: {r.get('url', 'web')}]\n{r['content']}"
-            for r in raw_results if r and r.get("content")
-        ])
+        web_combined = "\n\n---\n\n".join(
+            [
+                f"[WEB SOURCE: {r.get('url', 'web')}]\n{r['content']}"
+                for r in raw_results
+                if r and r.get("content")
+            ]
+        )
         log("FALLBACK", f"Retrieved {len(raw_results)} web results ✓", "green")
         if not web_combined:
             log("FALLBACK", "No usable web results, using doc context only.", "yellow")
@@ -352,7 +375,10 @@ def web_fallback(query: str, doc_context: str = "") -> str:
 
 # ── STEP 10: Final Generation ─────────────────────────────────
 def final_generate(query: str, context: str, final_llm) -> str:
-    log("GENERATE", f"Generating answer with {config.OPENROUTER_MODEL.split('/')[-1]}...")
+    log(
+        "GENERATE",
+        f"Generating answer with {config.OPENROUTER_MODEL.split('/')[-1]}...",
+    )
     prompt = (
         "You are a precise, factual assistant. Answer the question using ONLY "
         "the provided context.\n"
@@ -427,7 +453,7 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
                 hyde_queries[q] = future.result()
             except Exception:
                 hyde_queries[q] = q  # fallback to original if HyDE fails
-    log("HyDE", f"HyDE expansion complete ✓", "green")
+    log("HyDE", "HyDE expansion complete ✓", "green")
 
     # 3. Hybrid retrieval for each sub-query, collect all result lists
     log("RETRIEVE", "Running hybrid retrieval for all sub-queries...")
@@ -435,14 +461,20 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
     total_bm25 = 0
     for q in sub_queries:
         hyde_q = hyde_queries[q]
-        hyde_res, orig_res, bm25_res = hybrid_retrieve_single(q, hyde_q, index, nodes_store)
+        hyde_res, orig_res, bm25_res = hybrid_retrieve_single(
+            q, hyde_q, index, nodes_store
+        )
         all_result_lists.extend([hyde_res, orig_res, bm25_res])
         total_bm25 += len(bm25_res)
 
     # 4. RAG-Fusion across all result lists
     fused_nodes = rag_fusion(all_result_lists)
-    log("FUSION", f"RAG-Fusion merged {sum(len(r) for r in all_result_lists)} results → "
-        f"{len(fused_nodes)} unique chunks ✓", "green")
+    log(
+        "FUSION",
+        f"RAG-Fusion merged {sum(len(r) for r in all_result_lists)} results → "
+        f"{len(fused_nodes)} unique chunks ✓",
+        "green",
+    )
 
     # 5. Source diversity — max chunks per file
     diverse_nodes = enforce_source_diversity(fused_nodes)
@@ -459,9 +491,9 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
     log("PARALLEL", "Running CRAG gate + generation in parallel...")
     with ThreadPoolExecutor(max_workers=2) as ex:
         crag_future = ex.submit(crag_gate, query, compressed_context, fast_llm)
-        gen_future  = ex.submit(final_generate, query, compressed_context, final_llm)
+        gen_future = ex.submit(final_generate, query, compressed_context, final_llm)
         crag_ok = crag_future.result()
-        draft   = gen_future.result()
+        draft = gen_future.result()
 
     # 9. If CRAG says insufficient, decide whether to use web fallback
     if not crag_ok:
@@ -471,9 +503,17 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
         # names (e.g. "Axon Systems" → real Axon Inc. AXON ticker).
         # For internal document entities, "not in documents" is the correct answer.
         live_data_keywords = [
-            "stock price", "share price", "current price", "market cap",
-            "stock market", "trading at", "ticker", "valuation today",
-            "weather", "breaking news", "latest news"
+            "stock price",
+            "share price",
+            "current price",
+            "market cap",
+            "stock market",
+            "trading at",
+            "ticker",
+            "valuation today",
+            "weather",
+            "breaking news",
+            "latest news",
         ]
         query_lower = query.lower()
         is_live_data_query = any(kw in query_lower for kw in live_data_keywords)
@@ -483,7 +523,11 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
         entity_in_docs = len(compressed_context) > 100  # we got relevant doc chunks
 
         if is_live_data_query and entity_in_docs:
-            log("CRAG", "Live data query for internal entity — skipping web search", "yellow")
+            log(
+                "CRAG",
+                "Live data query for internal entity — skipping web search",
+                "yellow",
+            )
             draft = "The provided documents do not contain this information. This appears to be a request for real-time data (such as a stock price) that is not available in the internal documents."
             source_type = "docs_insufficient"
         else:
@@ -505,11 +549,13 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
     if source_type in ("docs", "docs_partial", "web+docs"):
         for n in reranked:
             meta = n.node.metadata
-            sources.append({
-                "file": meta.get("file_name", "unknown"),
-                "page": meta.get("page_label", "?"),
-                "score": round(n.score, 3) if n.score else None
-            })
+            sources.append(
+                {
+                    "file": meta.get("file_name", "unknown"),
+                    "page": meta.get("page_label", "?"),
+                    "score": round(n.score, 3) if n.score else None,
+                }
+            )
 
     return {
         "answer": final_answer,
@@ -517,5 +563,5 @@ def run_pipeline(query: str, index, nodes_store: list, fast_llm, final_llm) -> d
         "source_type": source_type,
         "sub_queries": sub_queries,
         "chunks_retrieved": len(fused_nodes),
-        "chunks_after_rerank": len(reranked)
+        "chunks_after_rerank": len(reranked),
     }
